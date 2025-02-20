@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"go-redis/lib/logger"
 	"io"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -91,4 +92,14 @@ func parse(src io.Reader) *ServerProperties {
 		}
 	}
 	return config
+}
+
+// SetupConfig read config file and store properties into Properties
+func SetupConfig(configFilename string) {
+	file, err := os.Open(configFilename)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+	Properties = parse(file)
 }
