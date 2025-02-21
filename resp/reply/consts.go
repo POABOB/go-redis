@@ -62,22 +62,22 @@ func MakeNullBulkReply() *NullBulkReply {
 
 // --- A Multi bulk reply is used to return an array of other replies.
 
-type MultiBulkReply struct {
+type EmptyMultiBulkReply struct {
 }
 
 var (
-	multiBulkBytes    = []byte("*0\r\n")
-	theMultiBulkReply = &MultiBulkReply{}
+	emptyMultiBulkBytes    = []byte("*0\r\n")
+	theEmptyMultiBulkReply = &EmptyMultiBulkReply{}
 )
 
 // ToBytes returns the bytes of empty multi-bulk
-func (m *MultiBulkReply) ToBytes() []byte {
-	return multiBulkBytes
+func (m *EmptyMultiBulkReply) ToBytes() []byte {
+	return emptyMultiBulkBytes
 }
 
-// MakeMultiBulkReply returns an instance of empty multi-bulk reply
-func MakeMultiBulkReply() *MultiBulkReply {
-	return theMultiBulkReply
+// MakeEmptyMultiBulkReply returns an instance of empty multi-bulk reply
+func MakeEmptyMultiBulkReply() *EmptyMultiBulkReply {
+	return theEmptyMultiBulkReply
 }
 
 // --- A No reply is used to return when a command is not found.
