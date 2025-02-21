@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"errors"
 	"go-redis/interface/resp"
+	"go-redis/lib/logger"
 	"go-redis/resp/reply"
 	"io"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -35,9 +37,82 @@ func ParseStream(reader io.Reader) <-chan *Payload {
 	return ch
 }
 
-// parse0 only send payload to channel.
+// parse0 is the main parsing function that reads line by line.
 func parse0(reader io.Reader, ch chan<- *Payload) {
-
+	// if the panic occurs, we need to recover and log the error.
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error(string(debug.Stack()))
+		}
+	}()
+	bufReader := bufio.NewReader(reader)
+	var state readState
+	var err error
+	var message []byte
+	for {
+		var isIOError bool
+		message, isIOError, err = readLine(bufReader, &state)
+		if err != nil {
+			ch <- &Payload{Error: err}
+			if isIOError {
+				close(ch)
+				return
+			}
+			state = readState{} // renew a new object, keep reading line
+			continue
+		}
+		// determine if the reply is multi-block
+		if !state.readingMultiLine {
+			if message[0] == '*' { // E.g. "*3\r\n"
+				err = parseMultiBulkHeader(message, &state)
+				if err != nil {
+					ch <- &Payload{Error: err}
+					state = readState{}
+					continue
+				}
+				if state.expectedArgsCount == 0 {
+					ch <- &Payload{Data: reply.MakeEmptyMultiBulkReply()}
+					state = readState{}
+					continue
+				}
+			} else if message[0] == '$' { // E.g. "$3\r\n"
+				err = parseBulkHeader(message, &state)
+				if err != nil {
+					ch <- &Payload{Error: err}
+					state = readState{}
+					continue
+				}
+				if state.expectedArgsCount == -1 { // -1 means null
+					ch <- &Payload{Data: reply.MakeNullBulkReply()}
+					state = readState{}
+					continue
+				}
+			} else { // E.g. "+OK\r\n" or "-err\r\n" or ":5\r\n"
+				result, err := parseSingleLineReply(message)
+				ch <- &Payload{Data: result, Error: err}
+				state = readState{}
+				continue
+			}
+		} else {
+			err = readBody(message, &state)
+			if err != nil {
+				ch <- &Payload{Error: err}
+				state = readState{}
+				continue
+			}
+			if state.isFinished() {
+				var result resp.Reply
+				if state.messageType == '*' {
+					result = reply.MakeMultiBulkReply(state.args)
+				} else if state.messageType == '$' {
+					result = reply.MakeBulkReply(state.args[0])
+				}
+				ch <- &Payload{Data: result, Error: err}
+				state = readState{}
+				continue
+			}
+		}
+	}
 }
 
 /*
@@ -143,7 +218,7 @@ func parseSingleLineReply(message []byte) (result resp.Reply, err error) {
 
 // readBody reads the body of the message.
 // E.g. "$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n".
-func readBody(message []byte, state readState) (err error) {
+func readBody(message []byte, state *readState) (err error) {
 	line := message[:len(message)-2] // exclude CRLF
 	if line[0] == '$' {
 		state.bulkLength, err = strconv.ParseInt(string(line[1:]), 10, 64)
