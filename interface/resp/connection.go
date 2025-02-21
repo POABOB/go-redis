@@ -2,6 +2,6 @@ package resp
 
 type Connection interface {
 	Write([]byte) error
-	GetDBIndex() []int
+	GetDBIndex() int
 	SelectDB(int)
 }
