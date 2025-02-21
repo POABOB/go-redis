@@ -74,7 +74,7 @@ func MakeStatusReply(status string) *StatusReply {
 	return &StatusReply{Status: status}
 }
 
-// --- A Int reply is used to reply a int
+// --- A Int reply is used to reply an int
 
 type IntReply struct {
 	Code int64
@@ -90,7 +90,7 @@ func MakeIntReply(code int64) *IntReply {
 	return &IntReply{Code: code}
 }
 
-// --- A Standard error reply is used to reply a error
+// --- A Standard error reply is used to reply an error
 
 type StandardErrorReply struct {
 	Status string

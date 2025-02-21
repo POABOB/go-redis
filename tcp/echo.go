@@ -70,7 +70,7 @@ func (handler *EchoHandler) Close() error {
 	handler.activeConnections.Range(func(key, value interface{}) bool {
 		client := key.(*EchoClient)
 		_ = client.Close()
-		// return true to continue the iteration or it will stop at the first iteration
+		// return true to continue the iteration, or it will stop at the first iteration
 		return true
 	})
 	return nil
