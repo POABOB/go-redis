@@ -14,6 +14,11 @@ type Connection struct {
 	selectedDB   int        // DB index
 }
 
+// NewConnection creates a new instance of Connection
+func NewConnection(conn net.Conn) *Connection {
+	return &Connection{connection: conn}
+}
+
 // RemoteAddress returns the remote address
 func (c *Connection) RemoteAddress() net.Addr {
 	return c.connection.RemoteAddr()

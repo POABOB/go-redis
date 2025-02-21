@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"go-redis/database"
 	datebaseInterface "go-redis/interface/datebase"
 	"go-redis/lib/logger"
 	"go-redis/lib/sync/atomic"
@@ -23,9 +24,8 @@ type RespHandler struct {
 
 // MakeHandler creates a new handler
 func MakeHandler() *RespHandler {
-	var database datebaseInterface.Database
-	// TODO Implement database
-	return &RespHandler{database: database}
+	var db datebaseInterface.Database = database.NewEchoDatabase()
+	return &RespHandler{database: db}
 }
 
 // Handle creates a new connection with the client and serves it
