@@ -140,3 +140,23 @@ func parseSingleLineReply(message []byte) (result resp.Reply, err error) {
 	}
 	return
 }
+
+// readBody reads the body of the message.
+// E.g. "$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n".
+func readBody(message []byte, state readState) (err error) {
+	line := message[:len(message)-2] // exclude CRLF
+	if line[0] == '$' {
+		state.bulkLength, err = strconv.ParseInt(string(line[1:]), 10, 64)
+		if err != nil {
+			err = errors.New("protocol error: " + string(message))
+			return
+		}
+		if state.bulkLength <= 0 { // $0\r\n
+			state.args = append(state.args, []byte{})
+			state.bulkLength = 0
+		}
+	} else {
+		state.args = append(state.args, line)
+	}
+	return
+}
