@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"go-redis/database"
-	datebaseInterface "go-redis/interface/datebase"
+	databaseInterface "go-redis/interface/database"
 	"go-redis/lib/logger"
 	"go-redis/lib/sync/atomic"
 	"go-redis/resp/connection"
@@ -18,13 +18,13 @@ import (
 
 type RespHandler struct {
 	activeConnections sync.Map
-	database          datebaseInterface.Database
+	database          databaseInterface.Database
 	closing           atomic.Boolean
 }
 
 // MakeHandler creates a new handler
 func MakeHandler() *RespHandler {
-	var db datebaseInterface.Database = database.NewEchoDatabase()
+	var db databaseInterface.Database = database.NewEchoDatabase()
 	return &RespHandler{database: db}
 }
 

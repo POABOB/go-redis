@@ -196,8 +196,8 @@ func (dict *ShardedDict) getRandomKeys(limit int, isDistinct bool) []string {
 	return result
 }
 
-// clear clears all shards in the dictionary.
-func (dict *ShardedDict) clear() {
+// Clear clears all shards in the dictionary.
+func (dict *ShardedDict) Clear() {
 	dict.mutex.Lock()
 	defer dict.mutex.Unlock()
 

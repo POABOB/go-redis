@@ -1,4 +1,4 @@
-package datebase
+package database
 
 import "go-redis/interface/resp"
 
