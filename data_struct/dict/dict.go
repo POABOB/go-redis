@@ -1,4 +1,4 @@
-package data_struct
+package dict
 
 // Consumer is a callback function, if return true, it will continue to iterate
 type Consumer func(key string, value interface{}) bool
