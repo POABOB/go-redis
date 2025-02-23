@@ -23,7 +23,7 @@ func MakeDatabase() *Database {
 	return &Database{index: 0, dict: dict.MakeSyncDict()}
 }
 
-func (db *Database) Exec(client resp.Connection, commandLine CommandLine) resp.Reply {
+func (db *Database) Exec(_ resp.Connection, commandLine CommandLine) resp.Reply {
 	commandName := strings.ToLower(string(commandLine[0]))
 	cmd, ok := commandTable[commandName]
 	if !ok {
