@@ -9,8 +9,9 @@ import (
 )
 
 type Database struct {
-	index int // the index of the database
-	dict  dict.Dict
+	index      int // the index of the database
+	dict       dict.Dict
+	addAofFunc func(CommandLine)
 }
 
 // ExecFunc is a function that executes a command in a database
@@ -20,7 +21,7 @@ type CommandLine [][]byte
 
 // MakeDatabase creates a new database
 func MakeDatabase() *Database {
-	return &Database{index: 0, dict: dict.MakeSyncDict()}
+	return &Database{index: 0, dict: dict.MakeSyncDict(), addAofFunc: func(commandLine CommandLine) {}}
 }
 
 func (db *Database) Exec(_ resp.Connection, commandLine CommandLine) resp.Reply {

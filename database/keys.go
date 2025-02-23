@@ -2,6 +2,7 @@ package database
 
 import (
 	"go-redis/interface/resp"
+	"go-redis/lib/utils"
 	"go-redis/lib/wildcard"
 	"go-redis/resp/reply"
 )
@@ -13,7 +14,11 @@ func execDel(db *Database, args [][]byte) resp.Reply {
 	for i, v := range args {
 		keys[i] = string(v)
 	}
-	return reply.MakeIntReply(int64(db.DeleteEntities(keys...)))
+	deletedCount := db.DeleteEntities(keys...)
+	if deletedCount > 0 {
+		db.addAofFunc(utils.ToCommandLine2("DEL", keys...))
+	}
+	return reply.MakeIntReply(int64(deletedCount))
 }
 
 // execExists executes the exists command.
@@ -31,8 +36,9 @@ func execExists(db *Database, args [][]byte) resp.Reply {
 
 // execFlushDB executes the flushdb command.
 // FLUSHDB
-func execFlushDB(db *Database, _ [][]byte) resp.Reply {
+func execFlushDB(db *Database, args [][]byte) resp.Reply {
 	db.Flush()
+	db.addAofFunc(utils.ToCommandLine3("FLUSHDB", args...))
 	return reply.MakeOkReply()
 }
 
@@ -61,6 +67,7 @@ func execRename(db *Database, args [][]byte) resp.Reply {
 	}
 	db.SetEntity(string(args[1]), entity)
 	db.DeleteEntity(string(args[0]))
+	db.addAofFunc(utils.ToCommandLine3("RENAME", args...))
 	return reply.MakeOkReply()
 }
 
@@ -77,6 +84,7 @@ func execRenameNx(db *Database, args [][]byte) resp.Reply {
 	}
 	db.SetEntity(string(args[1]), entity)
 	db.DeleteEntity(string(args[0]))
+	db.addAofFunc(utils.ToCommandLine3("RENAMENX", args...))
 	return reply.MakeIntReply(1)
 }
 

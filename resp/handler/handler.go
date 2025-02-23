@@ -24,7 +24,7 @@ type RespHandler struct {
 
 // MakeHandler creates a new handler
 func MakeHandler() *RespHandler {
-	var db databaseInterface.Database = database.NewDatabases()
+	var db databaseInterface.Database = database.NewDatabaseEngine()
 	return &RespHandler{database: db}
 }
 
