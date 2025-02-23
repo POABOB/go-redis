@@ -89,13 +89,3 @@ func (db *Database) DeleteEntities(keys ...string) int {
 func (db *Database) Flush() {
 	db.dict.Clear()
 }
-
-func (db *Database) Close() {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (db *Database) AfterClientClose(client resp.Connection) {
-	//TODO implement me
-	panic("implement me")
-}

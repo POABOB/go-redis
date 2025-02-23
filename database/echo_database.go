@@ -14,12 +14,12 @@ func NewEchoDatabase() *EchoDatabase {
 }
 
 // Exec executes the echo command
-func (e *EchoDatabase) Exec(client resp.Connection, args [][]byte) resp.Reply {
+func (e *EchoDatabase) Exec(_ resp.Connection, args [][]byte) resp.Reply {
 	return reply.MakeMultiBulkReply(args)
 }
 
 func (e *EchoDatabase) Close() {
 }
 
-func (e *EchoDatabase) AfterClientClose(client resp.Connection) {
+func (e *EchoDatabase) AfterClientClose(_ resp.Connection) {
 }
