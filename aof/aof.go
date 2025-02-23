@@ -3,7 +3,7 @@ package aof
 import (
 	"context"
 	"go-redis/config"
-	"go-redis/database"
+	"go-redis/interface/database"
 	"go-redis/lib/logger"
 	"go-redis/lib/utils"
 	"go-redis/resp/reply"
@@ -28,7 +28,7 @@ type payload struct {
 	wg          *sync.WaitGroup
 }
 
-// Listener will be called-back after receiving a aof payload with a listener we can forward the updates to slave nodes etc.
+// Listener will be called-back after receiving an aof payload with a listener we can forward the updates to slave nodes etc.
 type Listener interface {
 	Callback([]CommandLine)
 }
@@ -37,7 +37,7 @@ type Listener interface {
 type AofHandler struct {
 	ctx         context.Context
 	cancel      context.CancelFunc
-	database    *database.DatabaseEngine
+	database    database.Database
 	aofChan     chan *payload // aofChan is the channel to receive aof payload(listenCmd will send payload to this channel)
 	aofFile     *os.File      // aofFile is the file handler of aof file
 	aofFilename string        // aofFilename is the path of aof file
@@ -50,7 +50,7 @@ type AofHandler struct {
 }
 
 // NewAofHandler returns a new instance of AofHandler and open aof file
-func NewAofHandler(database *database.DatabaseEngine) (*AofHandler, error) {
+func NewAofHandler(database database.Database) (*AofHandler, error) {
 	handler := &AofHandler{}
 	handler.aofFilename = config.Properties.AppendFilename
 	handler.database = database

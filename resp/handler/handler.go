@@ -29,7 +29,7 @@ func MakeHandler() *RespHandler {
 }
 
 // Handle creates a new connection with the client and serves it
-func (handler *RespHandler) Handle(ctx context.Context, conn net.Conn) {
+func (handler *RespHandler) Handle(_ context.Context, conn net.Conn) {
 	// in case the server is closed
 	if handler.closing.Get() {
 		_ = conn.Close()

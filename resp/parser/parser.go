@@ -82,7 +82,8 @@ func parse0(reader io.Reader, ch chan<- *Payload) {
 					state = readState{}
 					continue
 				}
-				if state.expectedArgsCount == -1 { // -1 means null
+				if state.bulkLength == -1 { // -1 means null
+					// TODO
 					ch <- &Payload{Data: reply.MakeNullBulkReply()}
 					state = readState{}
 					continue
@@ -101,12 +102,13 @@ func parse0(reader io.Reader, ch chan<- *Payload) {
 				continue
 			}
 			if state.isFinished() {
-				var result resp.Reply
-				if state.messageType == '*' {
-					result = reply.MakeMultiBulkReply(state.args)
-				} else if state.messageType == '$' {
-					result = reply.MakeBulkReply(state.args[0])
-				}
+				var result resp.Reply = reply.MakeMultiBulkReply(state.args)
+				// TODO check
+				//if state.messageType == '*' {
+				//	result = reply.MakeMultiBulkReply(state.args)
+				//} else if state.messageType == '$' {
+				//	result = reply.MakeMultiBulkReply([][]byte{state.args[0]})
+				//}
 				ch <- &Payload{Data: result, Error: err}
 				state = readState{}
 				continue
@@ -130,7 +132,7 @@ func readLine(bufReader *bufio.Reader, state *readState) (message []byte, isIOEr
 		if err != nil {
 			return nil, true, err
 		}
-		if isMessageComplete(message) {
+		if len(message) == 0 || message[len(message)-2] != '\r' {
 			return nil, false, errors.New("protocol error: " + string(message))
 		}
 	} else { // use method 2.
@@ -139,7 +141,7 @@ func readLine(bufReader *bufio.Reader, state *readState) (message []byte, isIOEr
 		if err != nil {
 			return nil, true, err
 		}
-		if isMessageComplete(message) {
+		if len(message) == 0 || message[len(message)-2] != '\r' || message[len(message)-1] != '\n' {
 			return nil, false, errors.New("protocol error: " + string(message))
 		}
 		state.bulkLength = 0 // reset
@@ -147,30 +149,26 @@ func readLine(bufReader *bufio.Reader, state *readState) (message []byte, isIOEr
 	return message, false, nil
 }
 
-// isMessageComplete returns true if the message is end with CRLF.
-func isMessageComplete(message []byte) bool {
-	return len(message) > 0 && message[len(message)-2] == '\r' && message[len(message)-1] == '\n'
-}
-
 // parseMultiBulkHeader parses the multi bulk header and init the readState.
 // E.g. "*3\r\n$3\r\nSET\r\n$3\r\nkey\r\n$5\r\nvalue\r\n".
 func parseMultiBulkHeader(message []byte, state *readState) (err error) {
-	state.bulkLength, err = strconv.ParseInt(string(message[1:len(message)-2]), 10, 64)
+	var expectedLine int64
+	expectedLine, err = strconv.ParseInt(string(message[1:len(message)-2]), 10, 64)
 	if err != nil {
 		return errors.New("protocol error: " + string(message))
 	}
 
-	if state.bulkLength == 0 {
+	if expectedLine == 0 {
 		state.expectedArgsCount = 0
 		return
-	} else if state.bulkLength < 0 {
+	} else if expectedLine < 0 {
 		err = errors.New("protocol error: " + string(message))
 		return
 	}
 	state.messageType = message[0]
 	state.readingMultiLine = true
-	state.expectedArgsCount = int(state.bulkLength)
-	state.args = make([][]byte, 0, state.bulkLength)
+	state.expectedArgsCount = int(expectedLine)
+	state.args = make([][]byte, 0, expectedLine)
 	return
 }
 
@@ -201,7 +199,9 @@ func parseSingleLineReply(message []byte) (result resp.Reply, err error) {
 	str := strings.TrimSuffix(string(message), "\r\n")
 	switch message[0] {
 	case '+':
-		result = reply.MakeStatusReply(str[1:])
+		// result = reply.MakeStatusReply(str[1:])
+		// TODO check
+		result = reply.MakeMultiBulkReply([][]byte{[]byte(str[1:])})
 	case '-':
 		result = reply.MakeStandardErrorReply(str[1:])
 	case ':':

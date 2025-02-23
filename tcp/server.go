@@ -33,7 +33,7 @@ func ListenAndServeWithSignal(cfg *Config, handler tcp.Handler) error {
 		}
 	}()
 
-	logger.Info("Starting server on %s", cfg.Addr)
+	logger.Info("Starting server on", cfg.Addr)
 	ListenAndServe(listener, handler, closeChan)
 	return nil
 }
@@ -56,7 +56,7 @@ func ListenAndServe(listener net.Listener, handler tcp.Handler, closeChan <-chan
 		if err != nil {
 			break
 		}
-		logger.Info("Accepted connection from %s", conn.RemoteAddr().String())
+		logger.Info("Accepted connection from", conn.RemoteAddr().String())
 		waitDone.Add(1)
 		go func() {
 			// use defer to prevent wait group not executed if goroutine panic

@@ -35,8 +35,9 @@ func NewDatabaseEngine() *DatabaseEngine {
 		}
 		databaseEngine.aofHandler = aofHandler
 		for _, database := range databaseEngine.databaseSet {
+			index := database.index
 			database.addAofFunc = func(commandLine CommandLine) {
-				databaseEngine.aofHandler.AddAof(database.index, commandLine)
+				databaseEngine.aofHandler.AddAof(index, commandLine)
 			}
 		}
 	}
