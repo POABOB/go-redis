@@ -37,4 +37,4 @@ go-redis is a Go-based Redis implementation based on RESP (Redis Serialization P
 Contributions are welcome! If you want to help with the development of Redis Sentinel, Redis Cluster, or any other features, feel free to fork the repository, create a new branch, and submit a pull request.
 
 ## License
-Distributed under the MIT License.
+Distributed under the [MIT License](https://github.com/POABOB/go-redis/blob/main/LICENSE).
