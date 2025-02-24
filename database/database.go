@@ -6,6 +6,7 @@ import (
 	"go-redis/interface/resp"
 	"go-redis/resp/reply"
 	"strings"
+	"time"
 )
 
 type Database struct {
@@ -84,6 +85,13 @@ func (db *Database) DeleteEntities(keys ...string) int {
 		deletedCount += db.DeleteEntity(key)
 	}
 	return deletedCount
+}
+
+// ForEach iterates over all the entities in the database
+func (db *Database) ForEach(cb func(key string, data *database.DataEntity, expiration *time.Time) bool) {
+	db.dict.ForEach(func(key string, value interface{}) bool {
+		return cb(key, value.(*database.DataEntity), nil)
+	})
 }
 
 // Flush flushes the database

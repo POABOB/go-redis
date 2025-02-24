@@ -3,11 +3,13 @@ package database
 import (
 	"go-redis/aof"
 	"go-redis/config"
+	databaseInterface "go-redis/interface/database"
 	"go-redis/interface/resp"
 	"go-redis/lib/logger"
 	"go-redis/resp/reply"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type DatabaseEngine struct {
@@ -61,6 +63,14 @@ func (dbEngine *DatabaseEngine) Exec(client resp.Connection, args [][]byte) resp
 	return dbEngine.databaseSet[dbIndex].Exec(client, args)
 }
 
+func (dbEngine *DatabaseEngine) ForEach(dbIndex int, cb func(key string, data *databaseInterface.DataEntity, expiration *time.Time) bool) {
+	if dbIndex >= len(dbEngine.databaseSet) || dbIndex < 0 {
+		logger.Error("invalid db index")
+		return
+	}
+	dbEngine.databaseSet[dbIndex].ForEach(cb)
+}
+
 // execSelect executes the select command
 // SELECT index
 func execSelect(connection resp.Connection, dbEngine *DatabaseEngine, args [][]byte) resp.Reply {
@@ -75,6 +85,7 @@ func execSelect(connection resp.Connection, dbEngine *DatabaseEngine, args [][]b
 	return reply.MakeOkReply()
 }
 
+// Close closes the aof handler gracefully
 func (dbEngine *DatabaseEngine) Close() {
 	// graceful shutdown
 	if dbEngine.aofHandler != nil {

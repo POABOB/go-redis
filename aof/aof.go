@@ -3,7 +3,7 @@ package aof
 import (
 	"context"
 	"go-redis/config"
-	"go-redis/interface/database"
+	databaseInterface "go-redis/interface/database"
 	"go-redis/lib/logger"
 	"go-redis/lib/utils"
 	"go-redis/resp/connection"
@@ -42,7 +42,7 @@ type Listener interface {
 
 // AofHandler receive messages from channel and write to AOF file
 type AofHandler struct {
-	database   database.Database
+	database   databaseInterface.DatabaseEngine
 	currentDB  int
 	buffer     []byte // reuse commandLine buffer
 	bufferLock sync.Mutex
@@ -56,14 +56,18 @@ type AofHandler struct {
 	aofFsync    string         // aofFsync is the strategy of fsync
 	aofFinished sync.WaitGroup // aofFinished is used to wait aof rewrite is finished
 
+	aofRewriter  *AofRewriter
+	pausingMutex sync.Mutex
+
 	listeners map[Listener]struct{} // listeners is the map of listeners for other nodes
 }
 
 // NewAofHandler returns a new instance of AofHandler and open aof file
-func NewAofHandler(database database.Database) (*AofHandler, error) {
+func NewAofHandler(database databaseInterface.DatabaseEngine) (*AofHandler, error) {
 	handler := &AofHandler{}
 	handler.aofFilename = config.Properties.AppendFilename
 	handler.database = database
+	handler.aofRewriter = NewAofRewriter(database)
 
 	// Redis aofFsync default is "everysec"
 	switch config.Properties.AppendFsync {
@@ -109,18 +113,27 @@ func (handler *AofHandler) HandleAof() {
 	for {
 		select {
 		case p := <-handler.aofChan:
-			if p.dbIndex != handler.currentDB {
-				selectCommand := utils.ToCommandLine("SELECT", strconv.Itoa(p.dbIndex))
-				handler.bufferedWrite(selectCommand)
-				handler.currentDB = p.dbIndex
-			}
-			handler.bufferedWrite(p.commandLine)
-			if handler.aofFsync == FsyncAlways { // always fsync
-				handler.flushBuffer()
-			}
+			handler.processAofPayload(p)
 		case <-handler.ctx.Done(): // close aof
 			return
 		}
+	}
+}
+
+// processAofPayload
+func (handler *AofHandler) processAofPayload(p *payload) {
+	// this lock is used to prevent concurrent write
+	handler.pausingMutex.Lock()
+	defer handler.pausingMutex.Unlock()
+
+	if p.dbIndex != handler.currentDB {
+		selectCommand := utils.ToCommandLine("SELECT", strconv.Itoa(p.dbIndex))
+		handler.bufferedWrite(selectCommand)
+		handler.currentDB = p.dbIndex
+	}
+	handler.bufferedWrite(p.commandLine)
+	if handler.aofFsync == FsyncAlways || len(handler.buffer) >= bufferSize {
+		handler.flushBuffer()
 	}
 }
 
@@ -167,9 +180,6 @@ func (handler *AofHandler) bufferedWrite(commandLine CommandLine) {
 	defer handler.bufferLock.Unlock()
 	data := reply.MakeMultiBulkReply(commandLine).ToBytes()
 	handler.buffer = append(handler.buffer, data...)
-	if len(handler.buffer) >= bufferSize {
-		handler.flushBuffer()
-	}
 }
 
 // flushBuffer flushes aof buffer to disk
@@ -233,4 +243,41 @@ func (handler *AofHandler) Close() {
 	handler.aofFinished.Wait()  // wait all goroutines exit
 	handler.safeSync()          // safe flush
 	_ = handler.aofFile.Close() // close aof file
+}
+
+// ScheduleRewrite schedule aof rewrite
+// TODO add rewrite configuration
+func (handler *AofHandler) ScheduleRewrite() {
+	// this lock is used to prevent concurrent rewrite
+	if !handler.aofRewriter.TryLock() {
+		return
+	}
+
+	handler.aofFinished.Add(1)
+	go func() {
+		defer handler.aofFinished.Done()
+		handler.pausingMutex.Lock()
+		defer handler.pausingMutex.Unlock()
+		// Before starting rewrite, fsync the current AOF file to ensure data consistency
+		handler.safeSync()
+
+		err := handler.aofRewriter.TriggerRewrite()
+		if err != nil {
+			logger.Error("AOF rewrite failed:", err)
+			return
+		}
+		// Close old aofFile and open the new one
+		_ = handler.aofFile.Close()
+		aofFile, err := os.OpenFile(handler.aofFilename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0600)
+		if err != nil {
+			panic(err)
+		}
+		handler.aofFile = aofFile
+		// Reselect current db after the rewrite
+		data := reply.MakeMultiBulkReply(utils.ToCommandLine("SELECT", strconv.Itoa(handler.currentDB))).ToBytes()
+		_, err = handler.aofFile.Write(data)
+		if err != nil {
+			panic(err)
+		}
+	}()
 }
