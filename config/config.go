@@ -19,6 +19,7 @@ type ServerProperties struct {
 	MaxClients     int    `cfg:"maxclients"`
 	RequirePass    bool   `cfg:"requirepass"`
 	Databases      int    `cfg:"databases"`
+	AppendFsync    string `cfg:"appendFsync"`
 
 	Peers []string `cfg:"peers"`
 	Self  string   `cfg:"self"`

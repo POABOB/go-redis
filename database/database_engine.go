@@ -76,6 +76,10 @@ func execSelect(connection resp.Connection, dbEngine *DatabaseEngine, args [][]b
 }
 
 func (dbEngine *DatabaseEngine) Close() {
+	// graceful shutdown
+	if dbEngine.aofHandler != nil {
+		dbEngine.aofHandler.Close()
+	}
 }
 
 func (dbEngine *DatabaseEngine) AfterClientClose(_ resp.Connection) {
