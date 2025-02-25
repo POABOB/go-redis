@@ -240,14 +240,6 @@ func (handler *AofHandler) safeSync() {
 	logger.Error("AOF fsync failed after multiple attempts. Data consistency may be at risk.")
 }
 
-// Close closes aof
-func (handler *AofHandler) Close() {
-	handler.cancel()            // trigger ctx.Done()，make all goroutines exit
-	handler.aofFinished.Wait()  // wait all goroutines exit
-	handler.safeSync()          // safe flush
-	_ = handler.aofFile.Close() // close aof file
-}
-
 // ScheduleRewrite schedule aof rewrite
 func (handler *AofHandler) ScheduleRewrite() {
 	// this lock is used to prevent concurrent rewrite
@@ -292,4 +284,12 @@ func (handler *AofHandler) checkAofRewrite(fileSize int64) {
 	if fileSize >= autoAofRewriteMinSize && (fileSize-lastRewriteSize)/lastRewriteSize >= atoAofRewritePercentage {
 		handler.ScheduleRewrite()
 	}
+}
+
+// Close closes aof
+func (handler *AofHandler) Close() {
+	handler.cancel()            // trigger ctx.Done()，make all goroutines exit
+	handler.aofFinished.Wait()  // wait all goroutines exit
+	handler.safeSync()          // safe flush
+	_ = handler.aofFile.Close() // close aof file
 }
