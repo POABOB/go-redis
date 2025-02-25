@@ -12,14 +12,14 @@ import (
 	"time"
 )
 
-type DatabaseEngine struct {
+type StandaloneDatabase struct {
 	databaseSet []*Database
 	aofHandler  *aof.AofHandler
 }
 
-// NewDatabaseEngine returns a new instance of DatabaseEngine
-func NewDatabaseEngine() *DatabaseEngine {
-	databaseEngine := &DatabaseEngine{}
+// NewStandaloneDatabase returns a new instance of StandaloneDatabase
+func NewStandaloneDatabase() *StandaloneDatabase {
+	databaseEngine := &StandaloneDatabase{}
 	if config.Properties.Databases <= 0 {
 		config.Properties.Databases = 16
 	}
@@ -46,7 +46,7 @@ func NewDatabaseEngine() *DatabaseEngine {
 	return databaseEngine
 }
 
-func (dbEngine *DatabaseEngine) Exec(client resp.Connection, args [][]byte) resp.Reply {
+func (database *StandaloneDatabase) Exec(client resp.Connection, args [][]byte) resp.Reply {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
@@ -57,28 +57,28 @@ func (dbEngine *DatabaseEngine) Exec(client resp.Connection, args [][]byte) resp
 		if len(args) != 2 {
 			return reply.MakeArgsNumErrorReply(commandName)
 		}
-		return execSelect(client, dbEngine, args[1:])
+		return execSelect(client, database, args[1:])
 	}
 	dbIndex := client.GetDBIndex()
-	return dbEngine.databaseSet[dbIndex].Exec(client, args)
+	return database.databaseSet[dbIndex].Exec(client, args)
 }
 
-func (dbEngine *DatabaseEngine) ForEach(dbIndex int, cb func(key string, data *databaseInterface.DataEntity, expiration *time.Time) bool) {
-	if dbIndex >= len(dbEngine.databaseSet) || dbIndex < 0 {
+func (database *StandaloneDatabase) ForEach(dbIndex int, cb func(key string, data *databaseInterface.DataEntity, expiration *time.Time) bool) {
+	if dbIndex >= len(database.databaseSet) || dbIndex < 0 {
 		logger.Error("invalid db index")
 		return
 	}
-	dbEngine.databaseSet[dbIndex].ForEach(cb)
+	database.databaseSet[dbIndex].ForEach(cb)
 }
 
 // execSelect executes the select command
 // SELECT index
-func execSelect(connection resp.Connection, dbEngine *DatabaseEngine, args [][]byte) resp.Reply {
+func execSelect(connection resp.Connection, database *StandaloneDatabase, args [][]byte) resp.Reply {
 	dbIndex, err := strconv.Atoi(string(args[0]))
 	if err != nil {
 		return reply.MakeStandardErrorReply("ERR invalid DB index")
 	}
-	if dbIndex >= len(dbEngine.databaseSet) {
+	if dbIndex >= len(database.databaseSet) {
 		return reply.MakeStandardErrorReply("ERR DB index is out of range")
 	}
 	connection.SelectDB(dbIndex)
@@ -86,12 +86,12 @@ func execSelect(connection resp.Connection, dbEngine *DatabaseEngine, args [][]b
 }
 
 // Close closes the aof handler gracefully
-func (dbEngine *DatabaseEngine) Close() {
+func (database *StandaloneDatabase) Close() {
 	// graceful shutdown
-	if dbEngine.aofHandler != nil {
-		dbEngine.aofHandler.Close()
+	if database.aofHandler != nil {
+		database.aofHandler.Close()
 	}
 }
 
-func (dbEngine *DatabaseEngine) AfterClientClose(_ resp.Connection) {
+func (database *StandaloneDatabase) AfterClientClose(_ resp.Connection) {
 }
