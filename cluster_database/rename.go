@@ -23,7 +23,7 @@ func Rename(cluster *ClusterDatabase, conn resp.Connection, args CommandLine) re
 	}
 
 	// delete the key of source peer, and set the key to the destination peer
-	sourceReply := cluster.relayToPeer(srcPeer, conn, utils.ToCommandLine("GET", src))
+	sourceReply := cluster.relayToPeer(srcPeer, conn, utils.ToCommandLine("GETDEL", src))
 	bulkReply, ok := sourceReply.(*reply.BulkReply)
 	if !ok || bulkReply.Arg == nil {
 		return reply.MakeStandardErrorReply("no such key")
@@ -31,10 +31,6 @@ func Rename(cluster *ClusterDatabase, conn resp.Connection, args CommandLine) re
 	setReply := cluster.relayToPeer(destPeer, conn, utils.ToCommandLine("SET", dest, string(bulkReply.Arg)))
 	if reply.IsErrorReply(setReply) {
 		return setReply
-	}
-	delReply := cluster.relayToPeer(srcPeer, conn, utils.ToCommandLine("DEL", src))
-	if reply.IsErrorReply(delReply) {
-		return delReply
 	}
 	return reply.MakeOkReply()
 }

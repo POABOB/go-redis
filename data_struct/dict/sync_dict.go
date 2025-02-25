@@ -74,6 +74,15 @@ func (dict *SyncDict) Delete(key string) (result int) {
 	return 0
 }
 
+// GetAndDelete use LoadAndDelete function to get the value for the given key and delete it.
+func (dict *SyncDict) GetAndDelete(key string) (value interface{}, exists bool) {
+	value, exists = dict.syncMap.LoadAndDelete(key)
+	if exists {
+		dict.decrementCount()
+	}
+	return
+}
+
 // ForEach use Range function to iterate the dictionary.
 func (dict *SyncDict) ForEach(consumer Consumer) {
 	dict.syncMap.Range(func(key, value interface{}) bool {

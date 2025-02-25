@@ -13,6 +13,7 @@ func init() {
 	RegisterCommand("SET", execSet, 3)
 	RegisterCommand("SETNX", execSetNx, 3)
 	RegisterCommand("GETSET", execGetSet, 3)
+	RegisterCommand("GETDEL", execGetDel, 2)
 	RegisterCommand("STRLEN", execStrLen, 2)
 }
 
@@ -51,6 +52,17 @@ func execGetSet(db *Database, args [][]byte) resp.Reply {
 		return reply.MakeNullBulkReply()
 	}
 	db.addAofFunc(utils.ToCommandLine3("GETSET", args...))
+	return reply.MakeBulkReply(oldEntity.Data.([]byte))
+}
+
+// execGetDel executes the getdel command.
+// GETDEL key
+func execGetDel(db *Database, args [][]byte) resp.Reply {
+	oldEntity, exists := db.GetAndDeleteEntity(string(args[0]))
+	if oldEntity == nil || !exists {
+		return reply.MakeNullBulkReply()
+	}
+	db.addAofFunc(utils.ToCommandLine3("GETDEL", args...))
 	return reply.MakeBulkReply(oldEntity.Data.([]byte))
 }
 

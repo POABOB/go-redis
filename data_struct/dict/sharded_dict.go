@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -13,10 +14,10 @@ const numShards = 16
 
 // ShardedDict is a thread-safe dictionary using sharding for performance.
 type ShardedDict struct {
-	shards []*syncMapShard
-	count  int
-	mutex  sync.Mutex // Protects count, which is shared across all shards
-	random *rand.Rand
+	shards  []*syncMapShard
+	count   int32
+	mutexes sync.Map // the mutexes for each key
+	random  *rand.Rand
 }
 
 // syncMapShard holds a single shard's sync.Map and a mutex for synchronization.
@@ -38,7 +39,7 @@ func MakeShardedDict() *ShardedDict {
 // shardForKey returns the shard index for a given key.
 func (dict *ShardedDict) shardForKey(key string) *syncMapShard {
 	h := fnv.New32a()
-	h.Write([]byte(key))
+	_, _ = h.Write([]byte(key))
 	shardIndex := h.Sum32() % uint32(numShards)
 	return dict.shards[shardIndex]
 }
@@ -46,25 +47,17 @@ func (dict *ShardedDict) shardForKey(key string) *syncMapShard {
 // Get use Load function to return the value for the given key.
 func (dict *ShardedDict) Get(key string) (value interface{}, exists bool) {
 	shard := dict.shardForKey(key)
-	// prevent race condition for concurrent access the shard
-	shard.mutex.Lock()
-	defer shard.mutex.Unlock()
 	return shard.syncMap.Load(key)
 }
 
 // Length returns the total length of all shards combined.
 func (dict *ShardedDict) Length() int {
-	dict.mutex.Lock()
-	defer dict.mutex.Unlock()
-	return dict.count
+	return int(atomic.LoadInt32(&dict.count))
 }
 
 // Set use Store function to set the value for the given key.
 func (dict *ShardedDict) Set(key string, value interface{}) (result int) {
 	shard := dict.shardForKey(key)
-	shard.mutex.Lock()
-	defer shard.mutex.Unlock()
-
 	oldValue, exists := shard.syncMap.Load(key)
 	if exists && reflect.DeepEqual(oldValue, value) {
 		return 0
@@ -81,9 +74,6 @@ func (dict *ShardedDict) Set(key string, value interface{}) (result int) {
 // SetIfAbsent use LoadOrStore function to set the value for the given key, if the key does not exist.
 func (dict *ShardedDict) SetIfAbsent(key string, value interface{}) (result int) {
 	shard := dict.shardForKey(key)
-	shard.mutex.Lock()
-	defer shard.mutex.Unlock()
-
 	// LoadOrStore function to set the value if the key does not exist
 	_, exists := shard.syncMap.LoadOrStore(key, value)
 	if !exists {
@@ -96,9 +86,6 @@ func (dict *ShardedDict) SetIfAbsent(key string, value interface{}) (result int)
 // SetIfExists set the value for the given key, if the key exists.
 func (dict *ShardedDict) SetIfExists(key string, value interface{}) (result int) {
 	shard := dict.shardForKey(key)
-	shard.mutex.Lock()
-	defer shard.mutex.Unlock()
-
 	_, exists := shard.syncMap.Load(key)
 	if exists {
 		shard.syncMap.Store(key, value)
@@ -110,9 +97,6 @@ func (dict *ShardedDict) SetIfExists(key string, value interface{}) (result int)
 // Delete use LoadAndDelete function to delete the value for the given key.
 func (dict *ShardedDict) Delete(key string) (result int) {
 	shard := dict.shardForKey(key)
-	shard.mutex.Lock()
-	defer shard.mutex.Unlock()
-
 	_, exists := shard.syncMap.LoadAndDelete(key)
 	if exists {
 		dict.decrementCount()
@@ -124,12 +108,10 @@ func (dict *ShardedDict) Delete(key string) (result int) {
 // ForEach use Range function to iterate the dictionary.
 func (dict *ShardedDict) ForEach(consumer Consumer) {
 	for _, shard := range dict.shards {
-		shard.mutex.Lock()
 		shard.syncMap.Range(func(key, value interface{}) bool {
 			consumer(key.(string), value)
 			return true
 		})
-		shard.mutex.Unlock()
 	}
 }
 
@@ -137,12 +119,10 @@ func (dict *ShardedDict) ForEach(consumer Consumer) {
 func (dict *ShardedDict) Keys() []string {
 	result := make([]string, 0, dict.count)
 	for _, shard := range dict.shards {
-		shard.mutex.Lock()
 		shard.syncMap.Range(func(key, value interface{}) bool {
 			result = append(result, key.(string))
 			return true
 		})
-		shard.mutex.Unlock()
 	}
 	return result
 }
@@ -168,7 +148,6 @@ func (dict *ShardedDict) getRandomKeys(limit int, isDistinct bool) []string {
 	for limit > len(result) {
 		// Randomly select a shard
 		shard := dict.shards[rand.Intn(numShards)]
-		shard.mutex.Lock()
 
 		// Randomly pick a number of keys to fetch from this shard (between 1 and 10)
 		numKeysToFetch := rand.Intn(10) + 1 // Random number between 1 and 10
@@ -191,36 +170,46 @@ func (dict *ShardedDict) getRandomKeys(limit int, isDistinct bool) []string {
 			}
 			return limit > len(result) && numKeysToFetch > 0
 		})
-		shard.mutex.Unlock()
 	}
 	return result
 }
 
+// GetAndDelete use LoadAndDelete function to get the value for the given key and delete it.
+func (dict *ShardedDict) GetAndDelete(key string) (value interface{}, exists bool) {
+	shard := dict.shardForKey(key)
+	keyMutex := dict.GetMutexForKey(key)
+	keyMutex.Lock()
+	defer keyMutex.Unlock()
+
+	value, exists = shard.syncMap.LoadAndDelete(key)
+	if exists {
+		dict.decrementCount()
+	}
+	dict.mutexes.Delete(key) // prevent memory leak
+	return
+}
+
 // Clear clears all shards in the dictionary.
 func (dict *ShardedDict) Clear() {
-	dict.mutex.Lock()
-	defer dict.mutex.Unlock()
-
 	for _, shard := range dict.shards {
-		shard.mutex.Lock()
 		shard.syncMap = sync.Map{} // Reset the shard's map
-		shard.mutex.Unlock()
 	}
-
 	// Reset the count as well
-	dict.count = 0
+	atomic.SwapInt32(&dict.count, 0)
+}
+
+// GetMutexForKey gets the mutex for a given key
+func (dict *ShardedDict) GetMutexForKey(key string) *sync.Mutex {
+	actual, _ := dict.mutexes.LoadOrStore(key, &sync.Mutex{})
+	return actual.(*sync.Mutex)
 }
 
 // incrementCount increments the count of the dictionary.
 func (dict *ShardedDict) incrementCount() {
-	dict.mutex.Lock()
-	defer dict.mutex.Unlock()
-	dict.count++
+	atomic.AddInt32(&dict.count, 1)
 }
 
 // decrementCount decrements the count of the dictionary.
 func (dict *ShardedDict) decrementCount() {
-	dict.mutex.Lock()
-	defer dict.mutex.Unlock()
-	dict.count--
+	atomic.AddInt32(&dict.count, -1)
 }

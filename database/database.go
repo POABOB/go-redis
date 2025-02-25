@@ -22,7 +22,7 @@ type CommandLine [][]byte
 
 // MakeDatabase creates a new database
 func MakeDatabase() *Database {
-	return &Database{index: 0, dict: dict.MakeSyncDict(), addAofFunc: func(commandLine CommandLine) {}}
+	return &Database{index: 0, dict: dict.MakeShardedDict(), addAofFunc: func(commandLine CommandLine) {}}
 }
 
 func (db *Database) Exec(_ resp.Connection, commandLine CommandLine) resp.Reply {
@@ -85,6 +85,12 @@ func (db *Database) DeleteEntities(keys ...string) int {
 		deletedCount += db.DeleteEntity(key)
 	}
 	return deletedCount
+}
+
+// GetAndDeleteEntity gets the entity for the given key and deletes it
+func (db *Database) GetAndDeleteEntity(key string) (*database.DataEntity, bool) {
+	value, exists := db.dict.GetAndDelete(key)
+	return value.(*database.DataEntity), exists
 }
 
 // ForEach iterates over all the entities in the database

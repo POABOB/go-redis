@@ -5,6 +5,7 @@ type Consumer func(key string, value interface{}) bool
 
 type Dict interface {
 	Get(key string) (value interface{}, exists bool)
+	GetAndDelete(key string) (value interface{}, exists bool)
 	Length() int
 	Set(key string, value interface{}) (result int)
 	SetIfAbsent(key string, value interface{}) (result int)
