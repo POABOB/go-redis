@@ -46,6 +46,7 @@ func MakeClient(address string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	logger.Info("Connect to peer node: " + address)
 	return &Client{
 		address:     address,
 		connection:  connection,

@@ -9,10 +9,18 @@ import (
 	databaseInterface "go-redis/interface/database"
 	"go-redis/interface/resp"
 	"go-redis/lib/consistent_hash"
+	"go-redis/lib/logger"
+	"go-redis/resp/reply"
+	"strings"
+	"time"
 )
 
-// commandFunc is a function that executes a command
-type commandFunc func(cluster *ClusterDatabase, conn resp.Connection, commandAndArgs [][]byte) resp.Reply
+var commands = make(map[string]CommandFunc)
+
+type CommandLine [][]byte
+
+// CommandFunc is a function that executes a command
+type CommandFunc func(cluster *ClusterDatabase, conn resp.Connection, args CommandLine) resp.Reply
 
 type ClusterDatabase struct {
 	database   databaseInterface.DatabaseEngine
@@ -48,24 +56,30 @@ func NewClusterDatabase() *ClusterDatabase {
 	return clusterDatabase
 }
 
-//
-//func (cluster_database *ClusterDatabase) Exec(client resp.Connection, args [][]byte) (result resp.Reply) {
-//	defer func() {
-//		if err := recover(); err != nil {
-//			logger.Error(err)
-//			result = reply.MakeUnknownErrorReply()
-//		}
-//	}()
-//
-//}
-//
-//func (cluster_database *ClusterDatabase) Close() {
-//	cluster_database.database.Close()
-//}
-//
-//func (cluster_database *ClusterDatabase) AfterClientClose(conn resp.Connection) {
-//	cluster_database.database.AfterClientClose(conn)
-//}
-//
-//func (cluster_database *ClusterDatabase) ForEach(dbIndex int, cb func(key string, data *databaseInterface.DataEntity, expiration *time.Time) bool) {
-//}
+func (cluster *ClusterDatabase) Exec(client resp.Connection, args [][]byte) (result resp.Reply) {
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error(err)
+			result = reply.MakeUnknownErrorReply()
+		}
+	}()
+	command := strings.ToLower(string(args[0]))
+	if commandFunc, ok := commands[command]; ok {
+		result = commandFunc(cluster, client, args)
+	} else {
+		result = reply.MakeStandardErrorReply("not support command: " + string(args[0]))
+	}
+	return
+}
+
+func (cluster *ClusterDatabase) Close() {
+	cluster.database.Close()
+}
+
+func (cluster *ClusterDatabase) AfterClientClose(conn resp.Connection) {
+	cluster.database.AfterClientClose(conn)
+}
+
+// TODO
+func (cluster *ClusterDatabase) ForEach(dbIndex int, cb func(key string, data *databaseInterface.DataEntity, expiration *time.Time) bool) {
+}

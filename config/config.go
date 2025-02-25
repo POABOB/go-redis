@@ -33,21 +33,6 @@ type ServerProperties struct {
 // Properties global config properties
 var Properties *ServerProperties
 
-func init() {
-	// default config
-	Properties = &ServerProperties{
-		Bind:                       "127.0.0.1",
-		Port:                       6379,
-		AppendOnly:                 false,
-		AppendFilename:             "appendOnly.aof",
-		AppendFsync:                "everysec",
-		AutoAofRewriteMinSize:      "64mb",
-		AutoAofRewritePercentage:   100,
-		AofRewriteIncrementalFsync: true,
-		NoAppendFsyncOnRewrite:     false,
-	}
-}
-
 func parse(src io.Reader) *ServerProperties {
 	config := &ServerProperties{}
 

@@ -12,9 +12,15 @@ import (
 const configFile = "redis.conf"
 
 var defaultProperties = &config.ServerProperties{
-	Bind:       "0.0.0.0",
-	Port:       6379,
-	AppendOnly: false,
+	Bind:                       "127.0.0.1",
+	Port:                       6379,
+	AppendOnly:                 false,
+	AppendFilename:             "appendOnly.aof",
+	AppendFsync:                "everysec",
+	AutoAofRewriteMinSize:      "64mb",
+	AutoAofRewritePercentage:   100,
+	AofRewriteIncrementalFsync: true,
+	NoAppendFsyncOnRewrite:     false,
 }
 
 func fileExists(filename string) bool {
