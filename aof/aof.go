@@ -208,6 +208,9 @@ func (handler *AofHandler) flushBuffer() {
 	if handler.aofFsync != FsyncNo {
 		handler.safeSync()
 	}
+	fileInfo, _ := handler.aofFile.Stat()
+	currentAofSize := fileInfo.Size()
+	handler.checkAofRewrite(currentAofSize)
 }
 
 // periodicFsync flushes aof buffer to disk in a period
@@ -246,7 +249,6 @@ func (handler *AofHandler) Close() {
 }
 
 // ScheduleRewrite schedule aof rewrite
-// TODO add rewrite configuration
 func (handler *AofHandler) ScheduleRewrite() {
 	// this lock is used to prevent concurrent rewrite
 	if !handler.aofRewriter.TryLock() {
@@ -280,4 +282,14 @@ func (handler *AofHandler) ScheduleRewrite() {
 			panic(err)
 		}
 	}()
+}
+
+// checkAofRewrite check aof rewrite rule when aof file size need rewrite
+func (handler *AofHandler) checkAofRewrite(fileSize int64) {
+	autoAofRewriteMinSize, _ := utils.ParseSize(config.Properties.AutoAofRewriteMinSize)
+	atoAofRewritePercentage := config.Properties.AutoAofRewritePercentage
+	lastRewriteSize := handler.aofRewriter.lastRewriteSize
+	if fileSize >= autoAofRewriteMinSize && (fileSize-lastRewriteSize)/lastRewriteSize >= atoAofRewritePercentage {
+		handler.ScheduleRewrite()
+	}
 }

@@ -12,14 +12,19 @@ import (
 
 // ServerProperties define global config properties
 type ServerProperties struct {
-	Bind           string `cfg:"bind"`
-	Port           int    `cfg:"port"`
-	AppendOnly     bool   `cfg:"appendOnly"`
-	AppendFilename string `cfg:"appendFilename"`
-	MaxClients     int    `cfg:"maxclients"`
-	RequirePass    bool   `cfg:"requirepass"`
-	Databases      int    `cfg:"databases"`
-	AppendFsync    string `cfg:"appendFsync"`
+	Bind        string `cfg:"bind"`
+	Port        int    `cfg:"port"`
+	MaxClients  int    `cfg:"maxclients"`
+	RequirePass bool   `cfg:"requirepass"`
+	Databases   int    `cfg:"databases"`
+
+	AppendOnly                 bool   `cfg:"appendonly"`
+	AppendFilename             string `cfg:"appendfilename"`
+	AppendFsync                string `cfg:"appendfsync"`
+	AutoAofRewriteMinSize      string `cfg:"auto-aof-rewrite-min-size"`
+	AutoAofRewritePercentage   int64  `cfg:"auto-aof-rewrite-percentage"`
+	AofRewriteIncrementalFsync bool   `cfg:"aof-rewrite-incremental-fsync"`
+	NoAppendFsyncOnRewrite     bool   `cfg:"no-appendfsync-on-rewrite"`
 
 	Peers []string `cfg:"peers"`
 	Self  string   `cfg:"self"`
@@ -31,9 +36,15 @@ var Properties *ServerProperties
 func init() {
 	// default config
 	Properties = &ServerProperties{
-		Bind:       "127.0.0.1",
-		Port:       6379,
-		AppendOnly: false,
+		Bind:                       "127.0.0.1",
+		Port:                       6379,
+		AppendOnly:                 false,
+		AppendFilename:             "appendOnly.aof",
+		AppendFsync:                "everysec",
+		AutoAofRewriteMinSize:      "64mb",
+		AutoAofRewritePercentage:   100,
+		AofRewriteIncrementalFsync: true,
+		NoAppendFsyncOnRewrite:     false,
 	}
 }
 
@@ -101,6 +112,8 @@ func SetupConfig(configFilename string) {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 	Properties = parse(file)
 }

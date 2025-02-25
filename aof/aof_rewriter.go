@@ -19,9 +19,10 @@ var commandPool = sync.Pool{
 }
 
 type AofRewriter struct {
-	database     databaseInterface.DatabaseEngine
-	tempFile     *os.File
-	rewriteMutex sync.Mutex
+	database        databaseInterface.DatabaseEngine
+	lastRewriteSize int64
+	tempFile        *os.File
+	rewriteMutex    sync.Mutex
 }
 
 // NewAofRewriter creates a new AOF rewriter instance
@@ -51,6 +52,8 @@ func (rewriter *AofRewriter) TriggerRewrite() error {
 	if err != nil {
 		return err
 	}
+	fileInfo, _ := os.Stat(config.Properties.AppendFilename)
+	rewriter.lastRewriteSize = fileInfo.Size()
 	logger.Info("AOF rewrite completed successfully")
 	return nil
 }

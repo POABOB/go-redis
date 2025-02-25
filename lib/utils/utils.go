@@ -1,5 +1,11 @@
 package utils
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
 // ToCommandLine convert strings to [][]byte
 func ToCommandLine(cmd ...string) [][]byte {
 	args := make([][]byte, len(cmd))
@@ -100,4 +106,30 @@ func RemoveDuplicates(input [][]byte) [][]byte {
 	}
 
 	return result
+}
+
+// ParseSize parse the size string to int64
+func ParseSize(sizeStr string) (int64, error) {
+	sizeStr = strings.TrimSpace(strings.ToLower(sizeStr))
+	multiplier := int64(1)
+
+	switch {
+	case strings.HasSuffix(sizeStr, "kb"):
+		multiplier = 1024
+		sizeStr = strings.TrimSuffix(sizeStr, "kb")
+	case strings.HasSuffix(sizeStr, "mb"):
+		multiplier = 1024 * 1024
+		sizeStr = strings.TrimSuffix(sizeStr, "mb")
+	case strings.HasSuffix(sizeStr, "gb"):
+		multiplier = 1024 * 1024 * 1024
+		sizeStr = strings.TrimSuffix(sizeStr, "gb")
+	case strings.HasSuffix(sizeStr, "b"):
+		sizeStr = strings.TrimSuffix(sizeStr, "b")
+	}
+
+	sizeValue, err := strconv.ParseInt(strings.TrimSpace(sizeStr), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid size format: %s", sizeStr)
+	}
+	return sizeValue * multiplier, nil
 }

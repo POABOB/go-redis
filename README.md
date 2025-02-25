@@ -8,9 +8,20 @@ go-redis is a Go-based Redis implementation based on RESP (Redis Serialization P
 - `String Keys`: Supports Redis-like string key storage and retrieval.
 - `Graceful Shutdown`: Handles proper shutdown of Redis instances with in-progress requests managed.
 - `AOF (Append-Only File)`: Implements AOF persistence for durability, logging all write operations.
+  1. `Command Logging`: Every write operation is appended to the AOF file in RESP format.
+  2. `Fsync Policy`:
+     * **always**: Flushes data to disk after every command.
+     * **everysec**: Flushes data every second asynchronously.
+     * **no**: Relies on the operating system to decide when to flush.
+  3. `AOF Buffering`: Commands are first written to an internal buffer before being flushed to the file.
+  4. `AOF Rewrite Mechanism`: AOF rewrite is triggered under the following conditions:
+     * The AOF file size exceeds a configured threshold (auto-aof-rewrite-min-size).
+     * The file has grown by a defined percentage since the last rewrite (auto-aof-rewrite-percentage).
+     * Manually triggered by the user (BGREWRITEAOF command).
 
 ## TODO
 
+- [ ] `AOF Rewrite Incremental Fsync`: Implement incremental fsync while AOF rewrite.
 - [ ] `Authentication`: Support for authentication with password-based access control.
 - [ ] `RDB (Redis Database Persistence)`: Implement RDB persistence for saving snapshots of the database.
 - [ ] `Redis Cluster`: Implement Redis Cluster to manage sharded data across multiple Redis nodes.
