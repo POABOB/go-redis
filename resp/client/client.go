@@ -101,7 +101,7 @@ func (client *Client) doRequest(req *request) {
 }
 
 // handleConnectionError handles connection error and reconnect
-func (client *Client) handleConnectionError(err error) error {
+func (client *Client) handleConnectionError(_ error) error {
 	err1 := client.connection.Close()
 	if err1 != nil {
 		var opErr *net.OpError
@@ -117,6 +117,7 @@ func (client *Client) handleConnectionError(err error) error {
 		return err1
 	}
 	client.connection = conn
+	logger.Info("Connect to peer node: " + client.address)
 	go func() {
 		_ = client.handleRead()
 	}()
@@ -172,7 +173,11 @@ func (client *Client) doHeartbeat() {
 	client.working.Add(1)
 	defer client.working.Done()
 	client.pendingReqs <- request
-	request.waiting.WaitWithTimeout(maxWait)
+	if timeout := request.waiting.WaitWithTimeout(maxWait); timeout {
+		logger.Warn("timeout from peer node: " + client.address)
+	} else {
+		logger.Info("PONG from peer node: " + client.address)
+	}
 }
 
 // Send sends a request to redis server
