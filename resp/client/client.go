@@ -26,7 +26,8 @@ type Client struct {
 	ticker      *time.Ticker
 	address     string
 
-	working *sync.WaitGroup // its counter presents unfinished requests(pending and waiting)
+	onceClose sync.Once       // prevent closing multiple times
+	working   *sync.WaitGroup // its counter presents unfinished requests(pending and waiting)
 }
 
 // request is a message sends to redis server
@@ -91,7 +92,7 @@ func (client *Client) doRequest(req *request) {
 		i++
 	}
 	if err == nil {
-		client.waitingReqs <- req
+		client.waitingReqs <- req // block waiting
 	} else {
 		req.err = err
 		req.waiting.Done()
@@ -183,7 +184,12 @@ func (client *Client) Send(args [][]byte) resp.Reply {
 	request.waiting.Add(1)
 	client.working.Add(1)
 	defer client.working.Done()
-	client.pendingReqs <- request
+	// prevent sending when pendingReqs is closed
+	select {
+	case client.pendingReqs <- request:
+	default:
+		return reply.MakeStandardErrorReply("client is closed or no space available")
+	}
 	timeout := request.waiting.WaitWithTimeout(maxWait)
 	if timeout {
 		return reply.MakeStandardErrorReply("server time out")
@@ -196,14 +202,11 @@ func (client *Client) Send(args [][]byte) resp.Reply {
 
 // Close stops asynchronous goroutines and close connection
 func (client *Client) Close() {
-	client.ticker.Stop()
-	// stop new request
-	close(client.pendingReqs)
-
-	// wait stop process
-	client.working.Wait()
-
-	// clean
-	_ = client.connection.Close()
-	close(client.waitingReqs)
+	client.onceClose.Do(func() {
+		client.ticker.Stop()
+		close(client.pendingReqs)
+		client.working.Wait() // wait stop process
+		_ = client.connection.Close()
+		close(client.waitingReqs)
+	})
 }
