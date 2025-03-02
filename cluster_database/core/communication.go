@@ -1,8 +1,9 @@
-package cluster_database
+package core
 
 import (
 	"context"
 	"errors"
+	"go-redis/interface/database"
 	"go-redis/interface/resp"
 	"go-redis/lib/utils"
 	"go-redis/resp/client"
@@ -36,8 +37,8 @@ func (cluster *ClusterDatabase) returnPeerClient(peer string, clientConnection *
 	return pool.ReturnObject(context.Background(), clientConnection)
 }
 
-// relayToPeer relays a command to a peer or the local database
-func (cluster *ClusterDatabase) relayToPeer(peer string, connection resp.Connection, args CommandLine) resp.Reply {
+// RelayToPeer relays a command to a peer or the local database
+func (cluster *ClusterDatabase) RelayToPeer(peer string, connection resp.Connection, args database.CommandLine) resp.Reply {
 	if peer == cluster.self {
 		return cluster.database.Exec(connection, args)
 	}
@@ -52,10 +53,10 @@ func (cluster *ClusterDatabase) relayToPeer(peer string, connection resp.Connect
 	return clientConnection.Send(args)
 }
 
-func (cluster *ClusterDatabase) broadcast(connection resp.Connection, args CommandLine) map[string]resp.Reply {
+func (cluster *ClusterDatabase) Broadcast(connection resp.Connection, args database.CommandLine) map[string]resp.Reply {
 	results := make(map[string]resp.Reply)
 	for _, peer := range cluster.nodes {
-		results[peer] = cluster.relayToPeer(peer, connection, args)
+		results[peer] = cluster.RelayToPeer(peer, connection, args)
 	}
 	return results
 }

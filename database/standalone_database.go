@@ -38,7 +38,7 @@ func NewStandaloneDatabase() *StandaloneDatabase {
 		databaseEngine.aofHandler = aofHandler
 		for _, database := range databaseEngine.databaseSet {
 			index := database.index
-			database.addAofFunc = func(commandLine CommandLine) {
+			database.addAofFunc = func(commandLine databaseInterface.CommandLine) {
 				databaseEngine.aofHandler.AddAof(index, commandLine)
 			}
 		}
@@ -46,7 +46,7 @@ func NewStandaloneDatabase() *StandaloneDatabase {
 	return databaseEngine
 }
 
-func (database *StandaloneDatabase) Exec(client resp.Connection, args [][]byte) resp.Reply {
+func (database *StandaloneDatabase) Exec(client resp.Connection, args databaseInterface.CommandLine) resp.Reply {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
@@ -73,7 +73,7 @@ func (database *StandaloneDatabase) ForEach(dbIndex int, cb func(key string, dat
 
 // execSelect executes the select command
 // SELECT index
-func execSelect(connection resp.Connection, database *StandaloneDatabase, args [][]byte) resp.Reply {
+func execSelect(connection resp.Connection, database *StandaloneDatabase, args databaseInterface.CommandLine) resp.Reply {
 	dbIndex, err := strconv.Atoi(string(args[0]))
 	if err != nil {
 		return reply.MakeStandardErrorReply("ERR invalid DB index")

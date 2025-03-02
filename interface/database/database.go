@@ -9,7 +9,7 @@ type CommandLine = [][]byte
 
 // Database is the interface for redis style storage engine
 type Database interface {
-	Exec(client resp.Connection, args [][]byte) resp.Reply
+	Exec(client resp.Connection, args CommandLine) resp.Reply
 	Close()
 	AfterClientClose(client resp.Connection)
 }

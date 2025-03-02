@@ -12,20 +12,18 @@ import (
 type Database struct {
 	index      int // the index of the database
 	dict       dict.Dict
-	addAofFunc func(CommandLine)
+	addAofFunc func(database.CommandLine)
 }
 
 // ExecFunc is a function that executes a command in a database
 type ExecFunc func(db *Database, args [][]byte) resp.Reply
 
-type CommandLine [][]byte
-
 // MakeDatabase creates a new database
 func MakeDatabase() *Database {
-	return &Database{index: 0, dict: dict.MakeShardedDict(), addAofFunc: func(commandLine CommandLine) {}}
+	return &Database{index: 0, dict: dict.MakeShardedDict(), addAofFunc: func(commandLine database.CommandLine) {}}
 }
 
-func (db *Database) Exec(_ resp.Connection, commandLine CommandLine) resp.Reply {
+func (db *Database) Exec(_ resp.Connection, commandLine database.CommandLine) resp.Reply {
 	commandName := strings.ToLower(string(commandLine[0]))
 	cmd, ok := commandTable[commandName]
 	if !ok {

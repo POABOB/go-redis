@@ -1,4 +1,4 @@
-package cluster_database
+package core
 
 import (
 	"context"

@@ -1,9 +1,10 @@
-package cluster_database
+package core
 
 import (
 	"context"
 	pool "github.com/jolestar/go-commons-pool/v2"
 	"go-redis/aof"
+	command2 "go-redis/cluster_database/command"
 	"go-redis/config"
 	"go-redis/database"
 	databaseInterface "go-redis/interface/database"
@@ -14,13 +15,6 @@ import (
 	"strings"
 	"time"
 )
-
-var commands = make(map[string]CommandFunc)
-
-type CommandLine [][]byte
-
-// CommandFunc is a function that executes a command
-type CommandFunc func(cluster *ClusterDatabase, conn resp.Connection, args CommandLine) resp.Reply
 
 type ClusterDatabase struct {
 	database   databaseInterface.DatabaseEngine
@@ -64,6 +58,7 @@ func (cluster *ClusterDatabase) Exec(client resp.Connection, args [][]byte) (res
 		}
 	}()
 	command := strings.ToLower(string(args[0]))
+	commands := command2.Commands.GetCommands()
 	if commandFunc, ok := commands[command]; ok {
 		result = commandFunc(cluster, client, args)
 	} else {
@@ -81,5 +76,13 @@ func (cluster *ClusterDatabase) AfterClientClose(conn resp.Connection) {
 }
 
 // TODO
-func (cluster *ClusterDatabase) ForEach(dbIndex int, cb func(key string, data *databaseInterface.DataEntity, expiration *time.Time) bool) {
+func (cluster *ClusterDatabase) ForEach(_ int, _ func(key string, data *databaseInterface.DataEntity, expiration *time.Time) bool) {
+}
+
+func (cluster *ClusterDatabase) GetPeerNode(key string) string {
+	return cluster.peerPicker.GetNode(key)
+}
+
+func (cluster *ClusterDatabase) GetDatabase() databaseInterface.DatabaseEngine {
+	return cluster.database
 }

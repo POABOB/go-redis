@@ -16,8 +16,6 @@ import (
 	"time"
 )
 
-type CommandLine = [][]byte
-
 const (
 	aofQueueSize  = 1 << 20 // 1MB
 	bufferSize    = 1 << 16 // 64KB buffer
@@ -30,14 +28,14 @@ const (
 )
 
 type payload struct {
-	commandLine CommandLine
+	commandLine databaseInterface.CommandLine
 	dbIndex     int
 	wg          *sync.WaitGroup
 }
 
 // Listener will be called-back after receiving an aof payload with a listener we can forward the updates to slave nodes etc.
 type Listener interface {
-	Callback([]CommandLine)
+	Callback([]databaseInterface.CommandLine)
 }
 
 // AofHandler receive messages from channel and write to AOF file
@@ -97,7 +95,7 @@ func NewAofHandler(database databaseInterface.DatabaseEngine) (*AofHandler, erro
 }
 
 // AddAof adds aof payload to aofChan
-func (handler *AofHandler) AddAof(databaseIndex int, commandLine CommandLine) {
+func (handler *AofHandler) AddAof(databaseIndex int, commandLine databaseInterface.CommandLine) {
 	if !config.Properties.AppendOnly && handler.aofChan == nil {
 		return
 	}
@@ -175,7 +173,7 @@ func (handler *AofHandler) LoadAof() {
 }
 
 // bufferedWrite writes commandLine to aof buffer
-func (handler *AofHandler) bufferedWrite(commandLine CommandLine) {
+func (handler *AofHandler) bufferedWrite(commandLine databaseInterface.CommandLine) {
 	handler.bufferLock.Lock()
 	defer handler.bufferLock.Unlock()
 	data := reply.MakeMultiBulkReply(commandLine).ToBytes()
