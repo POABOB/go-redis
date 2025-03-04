@@ -1,6 +1,7 @@
 package dict
 
 import (
+	dictInterface "go-redis/interface/dict"
 	"hash/fnv"
 	"math/rand"
 	"reflect"
@@ -23,7 +24,6 @@ type ShardedDict struct {
 // syncMapShard holds a single shard's sync.Map and a mutex for synchronization.
 type syncMapShard struct {
 	syncMap sync.Map
-	mutex   sync.Mutex
 }
 
 // MakeShardedDict returns a new instance of ShardedDict.
@@ -106,7 +106,7 @@ func (dict *ShardedDict) Delete(key string) (result int) {
 }
 
 // ForEach use Range function to iterate the dictionary.
-func (dict *ShardedDict) ForEach(consumer Consumer) {
+func (dict *ShardedDict) ForEach(consumer dictInterface.Consumer) {
 	for _, shard := range dict.shards {
 		shard.syncMap.Range(func(key, value interface{}) bool {
 			consumer(key.(string), value)
@@ -177,15 +177,10 @@ func (dict *ShardedDict) getRandomKeys(limit int, isDistinct bool) []string {
 // GetAndDelete use LoadAndDelete function to get the value for the given key and delete it.
 func (dict *ShardedDict) GetAndDelete(key string) (value interface{}, exists bool) {
 	shard := dict.shardForKey(key)
-	keyMutex := dict.GetMutexForKey(key)
-	keyMutex.Lock()
-	defer keyMutex.Unlock()
-
 	value, exists = shard.syncMap.LoadAndDelete(key)
 	if exists {
 		dict.decrementCount()
 	}
-	dict.mutexes.Delete(key) // prevent memory leak
 	return
 }
 

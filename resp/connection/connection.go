@@ -12,6 +12,7 @@ type Connection struct {
 	waitingReply wait.Wait  // WaitGroup with timeout feature
 	mutex        sync.Mutex // Mutex Lock
 	selectedDB   int        // DB index
+	password     string     // login pass
 }
 
 // NewConnection creates a new instance of Connection
@@ -49,10 +50,21 @@ func (c *Connection) SelectDB(dbIndex int) {
 	c.selectedDB = dbIndex
 }
 
+// SetPassword stores password for authentication
+func (c *Connection) SetPassword(password string) {
+	c.password = password
+}
+
+// GetPassword get password for authentication
+func (c *Connection) GetPassword() string {
+	return c.password
+}
+
 // Close closes the connection while timeout
 func (c *Connection) Close() error {
 	c.waitingReply.WaitWithTimeout(10 * 1000 * time.Millisecond)
 	// no need to return error while the connection is closed
 	_ = c.connection.Close()
+	c.password = ""
 	return nil
 }

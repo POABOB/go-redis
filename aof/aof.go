@@ -147,6 +147,7 @@ func (handler *AofHandler) LoadAof() {
 	}()
 	ch := parser.ParseStream(file)
 	fakeConnection := &connection.Connection{}
+	fakeConnection.SetPassword(config.Properties.RequirePass)
 	for payload := range ch {
 		if payload.Error != nil {
 			if payload.Error == io.EOF {
@@ -166,7 +167,7 @@ func (handler *AofHandler) LoadAof() {
 		}
 		databaseReply := handler.database.Exec(fakeConnection, multiBulkReply.Args)
 		if reply.IsErrorReply(databaseReply) {
-			logger.Error("exec aof error", databaseReply.ToBytes())
+			logger.Error("exec aof error", string(databaseReply.ToBytes()))
 			continue
 		}
 	}

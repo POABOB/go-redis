@@ -15,7 +15,7 @@ type ServerProperties struct {
 	Bind        string `cfg:"bind"`
 	Port        int    `cfg:"port"`
 	MaxClients  int    `cfg:"maxclients"`
-	RequirePass bool   `cfg:"requirepass"`
+	RequirePass string `cfg:"requirepass"`
 	Databases   int    `cfg:"databases"`
 
 	AppendOnly                 bool   `cfg:"appendonly"`

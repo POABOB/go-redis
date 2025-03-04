@@ -1,7 +1,7 @@
 package database
 
 import (
-	"go-redis/interface/database"
+	databaseInterface "go-redis/interface/database"
 	"go-redis/interface/resp"
 	"go-redis/lib/utils"
 	"go-redis/resp/reply"
@@ -17,10 +17,10 @@ func init() {
 	RegisterCommand("STRLEN", execStrLen, 2)
 }
 
-// execGet executes the get command.
+// execGet executes the get commands.
 // GET key
-func execGet(db *Database, args [][]byte) resp.Reply {
-	entity, exists := db.GetEntity(string(args[0]))
+func execGet(dictEntity *DictEntity, args databaseInterface.CommandLine) resp.Reply {
+	entity, exists := dictEntity.GetEntity(string(args[0]))
 	if !exists {
 		return reply.MakeNullBulkReply()
 	}
@@ -28,48 +28,48 @@ func execGet(db *Database, args [][]byte) resp.Reply {
 	return reply.MakeBulkReply(entity.Data.([]byte))
 }
 
-// execSet executes the set command.
+// execSet executes the set commands.
 // SET key value
-func execSet(db *Database, args [][]byte) resp.Reply {
-	db.SetEntity(string(args[0]), &database.DataEntity{Data: args[1]})
-	db.addAofFunc(utils.ToCommandLine3("SET", args...))
+func execSet(dictEntity *DictEntity, args databaseInterface.CommandLine) resp.Reply {
+	dictEntity.SetEntity(string(args[0]), &databaseInterface.DataEntity{Data: args[1]})
+	dictEntity.addAofFunc(utils.ToCommandLine3("SET", args...))
 	return reply.MakeOkReply()
 }
 
-// execSetNx executes the setnx command.
+// execSetNx executes the setnx commands.
 // SETNX key value
-func execSetNx(db *Database, args [][]byte) resp.Reply {
-	defer db.addAofFunc(utils.ToCommandLine3("SETNX", args...))
-	return reply.MakeIntReply(int64(db.SetEntityIfAbsent(string(args[0]), &database.DataEntity{Data: args[1]})))
+func execSetNx(dictEntity *DictEntity, args databaseInterface.CommandLine) resp.Reply {
+	defer dictEntity.addAofFunc(utils.ToCommandLine3("SETNX", args...))
+	return reply.MakeIntReply(int64(dictEntity.SetEntityIfAbsent(string(args[0]), &databaseInterface.DataEntity{Data: args[1]})))
 }
 
-// execGetSet executes the getset command.
+// execGetSet executes the getset commands.
 // GETSET key value
-func execGetSet(db *Database, args [][]byte) resp.Reply {
-	oldEntity, exists := db.GetEntity(string(args[0]))
-	db.SetEntity(string(args[0]), &database.DataEntity{Data: args[1]})
+func execGetSet(dictEntity *DictEntity, args databaseInterface.CommandLine) resp.Reply {
+	oldEntity, exists := dictEntity.GetEntity(string(args[0]))
+	dictEntity.SetEntity(string(args[0]), &databaseInterface.DataEntity{Data: args[1]})
 	if !exists {
 		return reply.MakeNullBulkReply()
 	}
-	db.addAofFunc(utils.ToCommandLine3("GETSET", args...))
+	dictEntity.addAofFunc(utils.ToCommandLine3("GETSET", args...))
 	return reply.MakeBulkReply(oldEntity.Data.([]byte))
 }
 
-// execGetDel executes the getdel command.
+// execGetDel executes the getdel commands.
 // GETDEL key
-func execGetDel(db *Database, args [][]byte) resp.Reply {
-	oldEntity, exists := db.GetAndDeleteEntity(string(args[0]))
+func execGetDel(dictEntity *DictEntity, args databaseInterface.CommandLine) resp.Reply {
+	oldEntity, exists := dictEntity.GetAndDeleteEntity(string(args[0]))
 	if oldEntity == nil || !exists {
 		return reply.MakeNullBulkReply()
 	}
-	db.addAofFunc(utils.ToCommandLine3("GETDEL", args...))
+	dictEntity.addAofFunc(utils.ToCommandLine3("GETDEL", args...))
 	return reply.MakeBulkReply(oldEntity.Data.([]byte))
 }
 
-// execStrLen executes the strlen command.
+// execStrLen executes the strlen commands.
 // STRLEN key
-func execStrLen(db *Database, args [][]byte) resp.Reply {
-	entity, exists := db.GetEntity(string(args[0]))
+func execStrLen(dictEntity *DictEntity, args databaseInterface.CommandLine) resp.Reply {
+	entity, exists := dictEntity.GetEntity(string(args[0]))
 	if !exists {
 		return reply.MakeNullBulkReply()
 	}

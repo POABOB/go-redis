@@ -22,7 +22,8 @@ go-redis is a Go-based Redis implementation based on RESP (Redis Serialization P
 ## TODO
 
 - [ ] `AOF Rewrite Incremental Fsync`: Implement incremental fsync while AOF rewrite.
-- [ ] `Authentication`: Support for authentication with password-based access control.
+- [x] `Authentication`: Support for authentication with password-based access control.
+- [ ] `System Info Command`: Add the `system info` command to provide information about Redis server and its configuration.
 - [ ] `RDB (Redis Database Persistence)`: Implement RDB persistence for saving snapshots of the database.
 - [ ] `Redis Cluster`: Implement Redis Cluster to manage sharded data across multiple Redis nodes.
 - [ ] `Redis Sentinel`: Implement Redis Sentinel for automatic fail-over and high availability.
